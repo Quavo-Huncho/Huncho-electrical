@@ -33,7 +33,7 @@ export default async function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-900 bg-slate-950 text-slate-300">
+    <footer className="border-t border-slate-900 bg-slate-200 dark:bg-slate-950 text-slate-300">
       <div className="mx-auto max-w-7xl px-6 py-14 sm:px-8 lg:px-12">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.2fr]">
           {/* Brand */}
@@ -42,7 +42,7 @@ export default async function Footer() {
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white">
                 <FaBolt className="h-4 w-4" />
               </span>
-              <span className="text-lg font-bold text-white">
+              <span className="text-lg font-bold text-slate-900 dark:text-white">
                 {settings?.company_name || "Huncho Electrical"}
               </span>
             </div>
@@ -72,7 +72,7 @@ export default async function Footer() {
 
           {/* Quick links */}
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-200">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-900 dark:text-slate-200">
               Quick links
             </h3>
 
@@ -92,7 +92,7 @@ export default async function Footer() {
 
           {/* Contact */}
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-200">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-900 dark:text-slate-200">
               Get in touch
             </h3>
 
