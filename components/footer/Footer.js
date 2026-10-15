@@ -33,7 +33,7 @@ export default async function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-900 bg-slate-200 dark:bg-slate-950 text-slate-300">
+    <footer className="border-t border-slate-800 bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-300">
       <div className="mx-auto max-w-7xl px-6 py-14 sm:px-8 lg:px-12">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.2fr]">
           {/* Brand */}
@@ -47,9 +47,29 @@ export default async function Footer() {
               </span>
             </div>
 
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-400">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-600 dark:text-slate-400">
               Reliable electrical installations, maintenance and material
               supply for homes, businesses and industries.
+            </p>
+
+            {/* Newsletter / email CTA blurb */}
+            <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+              Have a question?{" "}
+              {settings?.email ? (
+                <a
+                  href={`mailto:${settings.email}`}
+                  className="font-semibold text-amber-600 transition hover:text-amber-500 dark:text-amber-400"
+                >
+                  Drop us an email
+                </a>
+              ) : (
+                <Link
+                  href="/contact"
+                  className="font-semibold text-amber-600 transition hover:text-amber-500 dark:text-amber-400"
+                >
+                  Get in touch
+                </Link>
+              )}
             </p>
 
             {socials.length > 0 && (
@@ -61,7 +81,7 @@ export default async function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={label}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition hover:border-amber-500 hover:text-amber-500"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-500 transition hover:scale-110 hover:border-amber-500 hover:text-amber-500 dark:border-slate-800 dark:text-slate-400 dark:hover:border-amber-500 dark:hover:text-amber-500"
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </a>
@@ -81,7 +101,7 @@ export default async function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-slate-400 transition hover:text-amber-400"
+                    className="text-sm text-slate-600 transition hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-400"
                   >
                     {link.label}
                   </Link>
@@ -96,13 +116,13 @@ export default async function Footer() {
               Get in touch
             </h3>
 
-            <ul className="mt-4 space-y-3 text-sm text-slate-400">
+            <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-400">
               {settings?.email && (
                 <li className="flex items-start gap-2.5">
                   <FaEnvelope className="mt-0.5 h-3.5 w-3.5 flex-none text-amber-500" />
                   <a
                     href={`mailto:${settings.email}`}
-                    className="break-all hover:text-amber-400"
+                    className="break-all hover:text-amber-500 dark:hover:text-amber-400"
                   >
                     {settings.email}
                   </a>
@@ -112,7 +132,10 @@ export default async function Footer() {
               {settings?.phone && (
                 <li className="flex items-start gap-2.5">
                   <FaPhoneAlt className="mt-0.5 h-3.5 w-3.5 flex-none text-amber-500" />
-                  <a href={`tel:${settings.phone}`} className="hover:text-amber-400">
+                  <a
+                    href={`tel:${settings.phone}`}
+                    className="hover:text-amber-500 dark:hover:text-amber-400"
+                  >
                     {settings.phone}
                   </a>
                 </li>
@@ -135,7 +158,7 @@ export default async function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-slate-900 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-3 border-t border-slate-200 pt-6 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {year} {settings?.company_name || "Huncho Electrical"}. All
             rights reserved.

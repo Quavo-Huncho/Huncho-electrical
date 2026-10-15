@@ -12,8 +12,10 @@ import {
   MessageSquare,
   Settings,
   Zap,
+  Package,
   Globe,
   Home,
+  ClipboardList,
   Briefcase,
   Phone,
   Info,
@@ -40,6 +42,16 @@ export default function DashboardSidebar({
       name: "Enquiries",
       href: "/dashboard/enquiries",
       icon: MessageSquare,
+    },
+    {
+      name: "Materials",
+      href: "/dashboard/materials",
+      icon: Package,
+    },
+    {
+      name: "Material Requests",
+      href: "/dashboard/material-requests",
+      icon: ClipboardList,
     },
     {
       name: "Settings",

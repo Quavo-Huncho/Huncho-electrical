@@ -14,7 +14,7 @@ export default function DashboardLayout({
   return (
 
    
-    <div className="flex h-screen overflow-hidden">
+    <div className="fixed inset-0 flex overflow-hidden">
 
       {
         sidebarOpen && (
