@@ -158,7 +158,7 @@ export default function AddMaterialForm({ onSuccess }) {
           }
           required
         >
-          <option value="">
+          <option value="" className="dark: text-white">
             Select Category
           </option>
 

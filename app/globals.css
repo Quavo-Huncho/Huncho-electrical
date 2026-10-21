@@ -91,3 +91,22 @@ body {
     box-shadow: 0 0 20px 0 rgb(245 158 11 / 0.25);
   }
 }
+
+/* Improve native form control colors in dark mode */
+html.dark select {
+  color-scheme: dark;
+}
+
+html:not(.dark) select {
+  color-scheme: light;
+}
+
+html.dark select option {
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+html:not(.dark) select option {
+  background-color: #ffffff;
+  color: #171717;
+}

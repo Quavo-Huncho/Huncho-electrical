@@ -8,7 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { FaBars, FaTimes } from "react-icons/fa";
 import ThemeToggle from "../ui/ThemeToggle";
 import { getUser, signOut } from "@/lib/auth";
-import { LayoutDashboard, LogOut, LogIn } from "lucide-react";
+import { LayoutDashboard, LogOut, LogIn, Zap } from "lucide-react";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,16 +64,9 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-amber-500">
-              <Image
-                src="/logo.png"
-                width={40}
-                height={40}
-                alt="Huncho Electrical"
-                className="h-10 w-10 object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-white">
+                <Zap size={24} />
+              </div>
             </div>
 
             <div>

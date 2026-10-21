@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -13,10 +14,25 @@ import {
   Plus,
   X,
   Trash2,
+  Pencil,
+  Save,
   CheckCircle2,
   AlertCircle,
   Loader2,
 } from "lucide-react";
+
+const MATERIAL_CATEGORIES = [
+  "Cables",
+  "Switches",
+  "Sockets",
+  "Distribution Boards",
+  "Circuit Breakers",
+  "Changeover Switches",
+  "Solar Materials",
+  "Lighting",
+  "Conduits",
+  "Accessories",
+];
 
 function formatPrice(price) {
   if (price === null || price === undefined || price === "") return "—";
@@ -24,12 +40,13 @@ function formatPrice(price) {
 }
 
 // ==========================================
-// TOAST
+// TOAST NOTIFICATION
 // ==========================================
 
 function Toast({ toast, onClose }) {
   useEffect(() => {
     if (!toast) return;
+
     const timer = setTimeout(onClose, 3500);
     return () => clearTimeout(timer);
   }, [toast, onClose]);
@@ -41,7 +58,7 @@ function Toast({ toast, onClose }) {
   return (
     <div
       role="status"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-start gap-3 rounded-xl border p-4 shadow-lg backdrop-blur sm:inset-x-auto sm:right-6 sm:bottom-6"
+      className="fixed inset-x-4 bottom-4 z-[70] mx-auto flex max-w-md items-start gap-3 rounded-xl border p-4 shadow-lg backdrop-blur sm:inset-x-auto sm:right-6 sm:bottom-6"
       style={{
         borderColor: isError ? "#fecaca" : "#a7f3d0",
         backgroundColor: isError
@@ -67,9 +84,7 @@ function Toast({ toast, onClose }) {
         type="button"
         onClick={onClose}
         aria-label="Dismiss notification"
-        className={`flex-none rounded-md p-1 transition hover:bg-black/5 ${
-          isError ? "text-rose-500" : "text-emerald-600"
-        }`}
+        className="rounded-md p-1 text-slate-500 hover:bg-black/5"
       >
         <X className="h-4 w-4" />
       </button>
@@ -78,7 +93,7 @@ function Toast({ toast, onClose }) {
 }
 
 // ==========================================
-// DELETE CONFIRM DIALOG
+// DELETE CONFIRMATION
 // ==========================================
 
 function DeleteDialog({ material, deleting, onCancel, onConfirm }) {
@@ -95,10 +110,10 @@ function DeleteDialog({ material, deleting, onCancel, onConfirm }) {
           Delete this material?
         </h3>
 
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-          <span className="font-semibold text-slate-700 dark:text-slate-300">
+        <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+          <strong className="text-slate-700 dark:text-slate-200">
             {material.name}
-          </span>{" "}
+          </strong>{" "}
           will be permanently removed from your materials list.
         </p>
 
@@ -107,7 +122,7 @@ function DeleteDialog({ material, deleting, onCancel, onConfirm }) {
             type="button"
             onClick={onCancel}
             disabled={deleting}
-            className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Cancel
           </button>
@@ -116,7 +131,7 @@ function DeleteDialog({ material, deleting, onCancel, onConfirm }) {
             type="button"
             onClick={onConfirm}
             disabled={deleting}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
             {deleting ? "Deleting..." : "Delete material"}
@@ -128,7 +143,7 @@ function DeleteDialog({ material, deleting, onCancel, onConfirm }) {
 }
 
 // ==========================================
-// STAT CARD
+// STATISTICS CARD
 // ==========================================
 
 function StatCard({ label, value, icon, accent }) {
@@ -159,13 +174,14 @@ function StatCard({ label, value, icon, accent }) {
 }
 
 // ==========================================
-// MAIN COMPONENT
+// MAIN MATERIALS PAGE
 // ==========================================
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+
   const [updatingId, setUpdatingId] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -174,6 +190,19 @@ export default function MaterialsPage() {
   const [stockFilter, setStockFilter] = useState("All");
 
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const [editingMaterial, setEditingMaterial] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    category: "",
+    description: "",
+    price: "",
+    in_stock: true,
+    featured: false,
+  });
+  const [editImage, setEditImage] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const [toast, setToast] = useState(null);
 
   function notify(type, message) {
@@ -185,8 +214,6 @@ export default function MaterialsPage() {
   // ==========================================
 
   async function loadMaterials() {
-    setLoading(true);
-
     const { data, error } = await supabase
       .from("materials")
       .select("*")
@@ -194,61 +221,102 @@ export default function MaterialsPage() {
 
     if (error) {
       console.error("Error loading materials:", error);
-      setMaterials([]);
-      notify("error", "Couldn't load materials. Please refresh.");
-    } else {
-      setMaterials(data || []);
+      notify("error", "Couldn't load materials: " + error.message);
+      return false;
     }
 
-    setLoading(false);
+    setMaterials(data || []);
+    return true;
   }
 
   useEffect(() => {
-    loadMaterials();
+    let active = true;
+
+    async function initialLoad() {
+      const { data, error } = await supabase
+        .from("materials")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!active) return;
+
+      if (error) {
+        console.error("Error loading materials:", error);
+        notify("error", "Couldn't load materials: " + error.message);
+      } else {
+        setMaterials(data || []);
+      }
+
+      setLoading(false);
+    }
+
+    initialLoad();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // ==========================================
-  // TOGGLE STOCK STATUS
+  // UPDATE STOCK
   // ==========================================
 
   async function toggleStock(item) {
     setUpdatingId(item.id);
 
-    const { error } = await supabase
-      .from("materials")
-      .update({ in_stock: !item.in_stock })
-      .eq("id", item.id);
+    try {
+      const { data, error } = await supabase
+        .from("materials")
+        .update({ in_stock: !item.in_stock })
+        .eq("id", item.id)
+        .select("id");
 
-    if (error) {
-      notify("error", "Couldn't update stock status: " + error.message);
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          "No material was updated. Check your materials table UPDATE policy in Supabase."
+        );
+      }
+
+      await loadMaterials();
+    } catch (error) {
+      console.error("Stock update error:", error);
+      notify("error", error.message || "Couldn't update stock status.");
+    } finally {
       setUpdatingId(null);
-      return;
     }
-
-    await loadMaterials();
-    setUpdatingId(null);
   }
 
   // ==========================================
-  // TOGGLE FEATURED
+  // UPDATE FEATURED STATUS
   // ==========================================
 
   async function toggleFeatured(item) {
     setUpdatingId(item.id);
 
-    const { error } = await supabase
-      .from("materials")
-      .update({ featured: !item.featured })
-      .eq("id", item.id);
+    try {
+      const { data, error } = await supabase
+        .from("materials")
+        .update({ featured: !item.featured })
+        .eq("id", item.id)
+        .select("id");
 
-    if (error) {
-      notify("error", "Couldn't update featured status: " + error.message);
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          "No material was updated. Check your materials table UPDATE policy in Supabase."
+        );
+      }
+
+      await loadMaterials();
+    } catch (error) {
+      console.error("Featured update error:", error);
+      notify("error", error.message || "Couldn't update featured status.");
+    } finally {
       setUpdatingId(null);
-      return;
     }
-
-    await loadMaterials();
-    setUpdatingId(null);
   }
 
   // ==========================================
@@ -260,34 +328,182 @@ export default function MaterialsPage() {
 
     setDeleting(true);
 
-    const { error } = await supabase
-      .from("materials")
-      .delete()
-      .eq("id", deleteTarget.id);
+    try {
+      const { data, error } = await supabase
+        .from("materials")
+        .delete()
+        .eq("id", deleteTarget.id)
+        .select("id");
 
-    if (error) {
-      notify("error", "Failed to delete material: " + error.message);
-    } else {
-      notify("success", "Material deleted.");
-      await loadMaterials();
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          "No material was deleted. Check the DELETE policy for the materials table in Supabase. Your current permissions may block this action."
+        );
+      }
+
+      setMaterials((current) =>
+        current.filter((item) => item.id !== deleteTarget.id)
+      );
+
+      setDeleteTarget(null);
+      notify("success", "Material deleted successfully.");
+    } catch (error) {
+      console.error("Delete material error:", error);
+      notify("error", error.message || "Failed to delete material.");
+    } finally {
+      setDeleting(false);
     }
-
-    setDeleting(false);
-    setDeleteTarget(null);
   }
 
   // ==========================================
-  // CATEGORIES
+  // OPEN EDIT FORM
+  // ==========================================
+
+  function openEdit(item) {
+    setEditingMaterial(item);
+
+    setEditForm({
+      name: item.name || "",
+      category: item.category || "",
+      description: item.description || "",
+      price: item.price ?? "",
+      in_stock: Boolean(item.in_stock),
+      featured: Boolean(item.featured),
+    });
+
+    setEditImage(null);
+  }
+
+  // ==========================================
+  // SAVE EDITED MATERIAL
+  // ==========================================
+
+  async function saveEdit(event) {
+    event.preventDefault();
+
+    if (!editingMaterial) return;
+
+    if (!editForm.name.trim()) {
+      notify("error", "Please enter a material name.");
+      return;
+    }
+
+    if (
+      editForm.price !== "" &&
+      (!Number.isFinite(Number(editForm.price)) ||
+        Number(editForm.price) < 0)
+    ) {
+      notify("error", "Please enter a valid price.");
+      return;
+    }
+
+    setSavingEdit(true);
+
+    let uploadedFilePath = null;
+
+    try {
+      let imageUrl = editingMaterial.image_url || "";
+
+      // Upload a replacement image if the admin selected one.
+      if (editImage) {
+        const extension =
+          editImage.name.split(".").pop()?.toLowerCase() || "jpg";
+
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.${extension}`;
+
+        uploadedFilePath = `materials/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("materials")
+          .upload(uploadedFilePath, editImage, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicData } = supabase.storage
+          .from("materials")
+          .getPublicUrl(uploadedFilePath);
+
+        imageUrl = publicData.publicUrl;
+      }
+
+      const { data, error } = await supabase
+        .from("materials")
+        .update({
+          name: editForm.name.trim(),
+          category: editForm.category,
+          description: editForm.description.trim(),
+          price: editForm.price === "" ? null : Number(editForm.price),
+          in_stock: editForm.in_stock,
+          featured: editForm.featured,
+          image_url: imageUrl,
+        })
+        .eq("id", editingMaterial.id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          "No material was updated. Check the UPDATE policy for the materials table in Supabase."
+        );
+      }
+
+      setMaterials((current) =>
+        current.map((item) =>
+          item.id === editingMaterial.id
+            ? {
+                ...item,
+                name: editForm.name.trim(),
+                category: editForm.category,
+                description: editForm.description.trim(),
+                price: editForm.price === "" ? null : Number(editForm.price),
+                in_stock: editForm.in_stock,
+                featured: editForm.featured,
+                image_url: imageUrl,
+              }
+            : item
+        )
+      );
+
+      setEditingMaterial(null);
+      setEditImage(null);
+      notify("success", "Material updated successfully.");
+    } catch (error) {
+      console.error("Update material error:", error);
+
+      // If upload succeeded but saving the row failed, attempt to remove
+      // the newly uploaded, unused image.
+      if (uploadedFilePath) {
+        const { error: cleanupError } = await supabase.storage
+          .from("materials")
+          .remove([uploadedFilePath]);
+
+        if (cleanupError) {
+          console.error("Replacement image cleanup error:", cleanupError);
+        }
+      }
+
+      notify("error", error.message || "Failed to update material.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  // ==========================================
+  // FILTERS AND STATISTICS
   // ==========================================
 
   const categories = useMemo(() => {
     const unique = materials.map((m) => m.category?.trim()).filter(Boolean);
     return ["All", ...new Set(unique)];
   }, [materials]);
-
-  // ==========================================
-  // FILTER
-  // ==========================================
 
   const filteredMaterials = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -302,6 +518,7 @@ export default function MaterialsPage() {
       })
       .filter((item) => {
         if (!query) return true;
+
         return (
           item.name?.toLowerCase().includes(query) ||
           item.category?.toLowerCase().includes(query)
@@ -309,17 +526,13 @@ export default function MaterialsPage() {
       });
   }, [materials, search, categoryFilter, stockFilter]);
 
-  // ==========================================
-  // STATISTICS
-  // ==========================================
-
   const total = materials.length;
   const inStockCount = materials.filter((m) => m.in_stock).length;
   const outOfStockCount = total - inStockCount;
   const featuredCount = materials.filter((m) => m.featured).length;
 
   const hasActiveFilters =
-    search || categoryFilter !== "All" || stockFilter !== "All";
+    Boolean(search) || categoryFilter !== "All" || stockFilter !== "All";
 
   // ==========================================
   // LOADING STATE
@@ -359,9 +572,7 @@ export default function MaterialsPage() {
   return (
     <section className="w-full overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
       <div className="mx-auto w-full max-w-7xl">
-        {/* ========================================
-            HEADER
-        ======================================== */}
+        {/* HEADER */}
 
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -380,7 +591,7 @@ export default function MaterialsPage() {
 
           <button
             type="button"
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => setShowForm((value) => !value)}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
           >
             {showForm ? (
@@ -392,29 +603,30 @@ export default function MaterialsPage() {
           </button>
         </div>
 
-        {/* ========================================
-            STATISTICS
-        ======================================== */}
+        {/* STATISTICS */}
 
-        <div className="mb-10 -mx-4 flex gap-4 overflow-x-auto px-4 pb-1 snap-x sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
+        <div className="mb-10 -mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
           <StatCard
             label="Total materials"
             value={total}
             icon={<Package className="h-5 w-5" />}
             accent="#f59e0b"
           />
+
           <StatCard
             label="In stock"
             value={inStockCount}
             icon={<PackageCheck className="h-5 w-5" />}
             accent="#10b981"
           />
+
           <StatCard
             label="Out of stock"
             value={outOfStockCount}
             icon={<PackageX className="h-5 w-5" />}
             accent="#f43f5e"
           />
+
           <StatCard
             label="Featured"
             value={featuredCount}
@@ -423,9 +635,7 @@ export default function MaterialsPage() {
           />
         </div>
 
-        {/* ========================================
-            ADD MATERIAL FORM
-        ======================================== */}
+        {/* ADD MATERIAL FORM */}
 
         {showForm && (
           <div className="mb-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -448,9 +658,9 @@ export default function MaterialsPage() {
 
             <div className="p-5 sm:p-6">
               <AddMaterialForm
-                onSuccess={() => {
+                onSuccess={async () => {
                   setShowForm(false);
-                  loadMaterials();
+                  await loadMaterials();
                   notify("success", "Material added.");
                 }}
               />
@@ -458,9 +668,7 @@ export default function MaterialsPage() {
           </div>
         )}
 
-        {/* ========================================
-            SEARCH + FILTERS
-        ======================================== */}
+        {/* SEARCH AND FILTERS */}
 
         <div className="sticky top-0 z-10 -mx-4 mb-6 bg-white/80 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-slate-950/80 sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none dark:sm:bg-transparent">
           <div className="flex flex-col gap-4">
@@ -477,7 +685,7 @@ export default function MaterialsPage() {
                   type="text"
                   placeholder="Search by name or category..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(event) => setSearch(event.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pl-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
                 />
               </div>
@@ -490,7 +698,7 @@ export default function MaterialsPage() {
                 <select
                   id="category-filter"
                   value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
                   {categories.map((category) => (
@@ -509,7 +717,7 @@ export default function MaterialsPage() {
                 <select
                   id="stock-filter"
                   value={stockFilter}
-                  onChange={(e) => setStockFilter(e.target.value)}
+                  onChange={(event) => setStockFilter(event.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
                   <option value="All">All stock status</option>
@@ -549,9 +757,7 @@ export default function MaterialsPage() {
           </div>
         </div>
 
-        {/* ========================================
-            MATERIALS LIST
-        ======================================== */}
+        {/* MATERIALS LIST */}
 
         {filteredMaterials.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900 sm:px-10">
@@ -594,12 +800,14 @@ export default function MaterialsPage() {
                   className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"
                 >
                   {/* IMAGE */}
+
                   <div className="relative aspect-[4/3] w-full flex-none overflow-hidden bg-slate-100 dark:bg-slate-800">
                     {item.image_url ? (
                       <Image
                         src={item.image_url}
                         alt={item.name}
                         fill
+                        unoptimized
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover transition duration-500 group-hover:scale-105"
                       />
@@ -617,7 +825,8 @@ export default function MaterialsPage() {
                     )}
                   </div>
 
-                  {/* CONTENT */}
+                  {/* MATERIAL DETAILS */}
+
                   <div className="flex flex-1 flex-col p-5">
                     <h3 className="line-clamp-1 font-semibold text-slate-900 dark:text-white">
                       {item.name}
@@ -626,6 +835,12 @@ export default function MaterialsPage() {
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                       {item.category || "Uncategorized"}
                     </p>
+
+                    {item.description && (
+                      <p className="mt-2 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
+                        {item.description}
+                      </p>
+                    )}
 
                     <p className="mt-3 text-lg font-bold text-slate-900 dark:text-white">
                       {formatPrice(item.price)}
@@ -650,10 +865,25 @@ export default function MaterialsPage() {
                         ) : (
                           <PackageX className="h-3 w-3" />
                         )}
+
                         {item.in_stock ? "In stock" : "Out of stock"}
                       </button>
 
                       <div className="flex items-center gap-1">
+                        {/* EDIT BUTTON */}
+
+                        <button
+                          type="button"
+                          onClick={() => openEdit(item)}
+                          aria-label={`Edit ${item.name}`}
+                          title="Edit material"
+                          className="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-500/10 dark:hover:text-blue-400"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+
+                        {/* FEATURED BUTTON */}
+
                         <button
                           type="button"
                           onClick={() => toggleFeatured(item)}
@@ -664,19 +894,24 @@ export default function MaterialsPage() {
                               : `Mark ${item.name} as featured`
                           }
                           title="Click to toggle featured"
-                          className="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-amber-500/10"
+                          className="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-500 disabled:opacity-60 dark:hover:bg-amber-500/10"
                         >
                           <Star
                             className={`h-4 w-4 ${
-                              item.featured ? "fill-amber-500 text-amber-500" : ""
+                              item.featured
+                                ? "fill-amber-500 text-amber-500"
+                                : ""
                             }`}
                           />
                         </button>
+
+                        {/* DELETE BUTTON */}
 
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(item)}
                           aria-label={`Delete ${item.name}`}
+                          title="Delete material"
                           className="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -690,6 +925,184 @@ export default function MaterialsPage() {
           </div>
         )}
       </div>
+
+      {/* EDIT MATERIAL MODAL */}
+
+      {editingMaterial && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/60 px-4 py-8 backdrop-blur-sm">
+          <div className="my-auto w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900 sm:p-7">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                  Edit material
+                </h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Update the details below and save your changes.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingMaterial(null)}
+                disabled={savingEdit}
+                aria-label="Close edit form"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={saveEdit} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Material name *
+                  <input
+                    required
+                    value={editForm.name}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  />
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Category
+
+                  <select
+                    value={editForm.category}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        category: event.target.value,
+                      }))
+                    }
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  >
+                    <option value="">Select category</option>
+
+                    {MATERIAL_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+              </div>
+
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Description
+                <textarea
+                  rows={3}
+                  value={editForm.description}
+                  onChange={(event) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
+                  }
+                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+              </label>
+
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Price (₦)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editForm.price}
+                  onChange={(event) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      price: event.target.value,
+                    }))
+                  }
+                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+              </label>
+
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Replace image (optional)
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) =>
+                    setEditImage(event.target.files?.[0] || null)
+                  }
+                  className="mt-1.5 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-3 file:py-2 file:font-semibold file:text-amber-700 dark:text-slate-300 dark:file:bg-amber-500/10 dark:file:text-amber-400"
+                />
+                <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
+                  Leave empty to keep the current image.
+                </span>
+              </label>
+
+              <div className="flex flex-wrap gap-5">
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={editForm.in_stock}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        in_stock: event.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 accent-amber-500"
+                  />
+                  In stock
+                </label>
+
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={editForm.featured}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        featured: event.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 accent-amber-500"
+                  />
+                  Featured material
+                </label>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 dark:border-slate-800 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingMaterial(null)}
+                  disabled={savingEdit}
+                  className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingEdit ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+
+                  {savingEdit ? "Saving..." : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION DIALOG */}
 
       <DeleteDialog
         material={deleteTarget}
