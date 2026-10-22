@@ -15,9 +15,9 @@ export default function TrustSection() {
           {items.map(({ icon: Icon, title }) => (
             <div
               key={title}
-              className="group flex flex-col items-center gap-3 rounded-xl px-4 py-3 text-center transition hover:bg-amber-50 dark:hover:bg-amber-500/5 sm:flex-row sm:text-left"
+              className="group flex min-h-[90px] flex-col items-center gap-3 rounded-2xl border-l-4 border-amber-500 bg-white px-4 py-3 text-center shadow-sm transition hover:bg-amber-50 dark:bg-slate-900 dark:hover:bg-amber-500/5 sm:flex-row sm:text-left"
             >
-              <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-amber-100 text-lg text-amber-600 transition group-hover:border-l-4 group-hover:border-amber-500 dark:bg-amber-500/10 dark:text-amber-400">
+              <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-amber-100 text-lg text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
                 <Icon />
               </span>
 

@@ -32,14 +32,21 @@ export default function WhyChooseUs() {
             Why choose Huncho Electrical
           </h2>
           <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-amber-500" />
+          <p className="mt-3 text-base text-slate-500 dark:text-slate-400">
+            Everything you need from a trusted electrical contractor.
+          </p>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {reasons.map(({ icon: Icon, title, text }) => (
+          {reasons.map(({ icon: Icon, title, text }, index) => (
             <div
               key={title}
-              className="group relative overflow-hidden rounded-2xl bg-white p-7 text-center shadow-sm transition hover:-translate-y-1.5 hover:shadow-xl hover:ring-2 hover:ring-amber-400/50 dark:bg-slate-900"
+              className="group relative min-h-[200px] overflow-hidden rounded-2xl bg-white p-7 text-center shadow-sm transition hover:-translate-y-1.5 hover:shadow-xl hover:ring-2 hover:ring-amber-400/50 dark:bg-slate-900"
             >
+              {/* Numbered badge */}
+              <span className="absolute right-4 top-4 select-none text-2xl font-extrabold tabular-nums text-slate-200 transition group-hover:text-amber-400 dark:text-slate-700 dark:group-hover:text-amber-500">
+                {String(index + 1).padStart(2, "0")}
+              </span>
               {/* Icon with hover glow */}
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-xl text-amber-600 transition group-hover:bg-amber-500 group-hover:text-white group-hover:shadow-[0_0_16px_0_rgb(245_158_11_/0.4)] dark:bg-amber-500/10 dark:text-amber-400">
                 <Icon />

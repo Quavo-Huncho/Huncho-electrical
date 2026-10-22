@@ -11,9 +11,6 @@ export default function MaterialCard({ material }) {
   const inStock = material.in_stock;
   const price = formatPrice(material.price);
 
-  console.log("Material:", material.name);
-  console.log("Image URL:", material.image_url);
-
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
       {/* Image */}
@@ -68,13 +65,17 @@ export default function MaterialCard({ material }) {
         )}
 
         <div className="mt-5 flex flex-1 items-end justify-between gap-3">
-          <p className="text-xl font-bold text-slate-900 dark:text-white">
+          <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
             {price || "Price on request"}
           </p>
 
           <Link
             href="/contact"
-            className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+            className={
+              inStock
+                ? "inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                : "inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800 transition focus:outline-none"
+            }
           >
             {inStock ? "Request quote" : "Ask availability"}
             <FaArrowRight className="h-3 w-3" />

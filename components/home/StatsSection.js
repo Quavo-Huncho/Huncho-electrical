@@ -42,28 +42,24 @@ export default function StatsSection() {
       </svg>
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <p className="mb-8 text-center text-sm font-semibold uppercase tracking-widest text-slate-900/50">
+          Our track record
+        </p>
         <div className="grid grid-cols-2 gap-8 text-center sm:grid-cols-4">
           {stats.map((stat, index) => (
             <div
               key={stat.label}
-              className={`sm:px-4 ${
-                index < 3
-                  ? "sm:border-r sm:border-slate-900/20"
-                  : ""
+              className={`sm:px-4 ${index < 3 ? "sm:border-r sm:border-slate-900/20" : ""} ${
+                index >= 2 ? "border-t border-slate-900/15 pt-8 sm:border-t-0 sm:pt-0" : ""
               }`}
             >
-              {/* Decorative pulse dot */}
-              <span
-                className="mb-3 inline-block h-2 w-2 animate-pulse rounded-full bg-slate-900/40"
-                aria-hidden="true"
-              />
-
-              <p className="text-5xl font-extrabold tracking-tight text-slate-900 sm:text-6xl">
+              <p className="text-5xl font-extrabold tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
                 {stat.value}
               </p>
 
               <p className="mt-2 text-sm font-medium text-slate-900/70 sm:text-base">
                 {stat.label}
+                <span className="ml-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-slate-900/40 align-middle" aria-hidden="true" />
               </p>
             </div>
           ))}

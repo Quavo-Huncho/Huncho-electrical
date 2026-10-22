@@ -35,13 +35,14 @@ export default async function MaterialsSection() {
   if (materials.length === 0) return null;
 
   return (
-    <section className="bg-white py-20 dark:bg-slate-900 sm:py-24">
+    <section className="bg-slate-50 py-20 dark:bg-slate-950 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-14 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
               {hasFeatured ? "Featured materials" : "Materials we supply"}
             </h2>
+            <div className="mt-3 h-1 w-16 rounded-full bg-amber-500" />
 
             <p className="mt-3 max-w-xl text-base leading-7 text-slate-500 dark:text-slate-400">
               Quality cables, switches, breakers and more, available for your

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   Inbox,
@@ -153,20 +154,35 @@ function DeleteDialog({ enquiry, deleting, onCancel, onConfirm }) {
 // STAT CARD
 // ==========================================
 
-function StatCard({ label, value, icon, accent }) {
+function StatCard({ label, value, icon, accent, filterValue, activeFilter, onFilter }) {
+  const isActive = activeFilter === filterValue;
+
   return (
-    <div
-      className="min-w-[168px] flex-1 snap-start rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-      style={{ borderLeftWidth: 4, borderLeftColor: accent }}
+    <button
+      type="button"
+      onClick={() => onFilter(isActive ? "All" : filterValue)}
+      className="min-w-[168px] flex-1 snap-start rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900"
+      style={{
+        borderLeftWidth: 4,
+        borderLeftColor: accent,
+        borderColor: isActive ? accent : undefined,
+        outline: isActive ? `2px solid ${accent}` : "none",
+        outlineOffset: 2,
+      }}
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="text-left">
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
             {label}
           </p>
           <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
             {value}
           </p>
+          {isActive && (
+            <p className="mt-1 text-xs font-semibold" style={{ color: accent }}>
+              Filtered ✕
+            </p>
+          )}
         </div>
 
         <div
@@ -176,7 +192,7 @@ function StatCard({ label, value, icon, accent }) {
           {icon}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -185,13 +201,20 @@ function StatCard({ label, value, icon, accent }) {
 // ==========================================
 
 export default function EnquiriesPage() {
+  const searchParams = useSearchParams();
+
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All");
+  // Pre-select filter from ?filter= query param (e.g. coming from dashboard)
+  const [filter, setFilter] = useState(() => {
+    const param = searchParams.get("filter");
+    const valid = ["All", ...STATUSES.map((s) => s.value)];
+    return valid.includes(param) ? param : "All";
+  });
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
@@ -461,24 +484,36 @@ export default function EnquiriesPage() {
             value={total}
             icon={<Inbox className="h-5 w-5" />}
             accent="#f59e0b"
+            filterValue="All"
+            activeFilter={filter}
+            onFilter={setFilter}
           />
           <StatCard
             label="New"
             value={newCount}
             icon={<Sparkles className="h-5 w-5" />}
             accent={statusConfig("New").accent}
+            filterValue="New"
+            activeFilter={filter}
+            onFilter={setFilter}
           />
           <StatCard
             label="In progress"
             value={progressCount}
             icon={<Clock3 className="h-5 w-5" />}
             accent={statusConfig("In Progress").accent}
+            filterValue="In Progress"
+            activeFilter={filter}
+            onFilter={setFilter}
           />
           <StatCard
             label="Completed"
             value={completedCount}
             icon={<CheckCircle2 className="h-5 w-5" />}
             accent={statusConfig("Completed").accent}
+            filterValue="Completed"
+            activeFilter={filter}
+            onFilter={setFilter}
           />
         </div>
 

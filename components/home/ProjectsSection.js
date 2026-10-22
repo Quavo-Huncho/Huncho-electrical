@@ -74,6 +74,12 @@ export default async function ProjectsSection() {
                   )}
 
                   <div className="pointer-events-none absolute inset-0 bg-amber-500/0 transition group-hover:bg-amber-500/10" />
+
+                  {project.category && (
+                    <span className="absolute left-3 top-3 z-10 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                      {project.category}
+                    </span>
+                  )}
                 </div>
 
                 {/* Project details */}
@@ -105,15 +111,20 @@ export default async function ProjectsSection() {
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center dark:border-slate-700">
-            <FaBolt className="mx-auto h-8 w-8 text-amber-500" />
-
-            <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-white">
-              Projects Coming Soon
-            </h3>
-
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Our project portfolio will be available here soon.
+          <div className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <div className="h-52 animate-pulse bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800" />
+                  <div className="space-y-3 p-6">
+                    <div className="h-4 w-3/4 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-3 w-1/2 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-sm font-medium text-slate-400 dark:text-slate-500">
+              Portfolio coming soon
             </p>
           </div>
         )}

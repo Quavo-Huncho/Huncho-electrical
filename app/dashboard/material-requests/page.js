@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   ClipboardList,
@@ -133,12 +134,19 @@ function StatCard({ label, value, icon, accent }) {
 // ==========================================
 
 export default function MaterialRequestsPage() {
+  const searchParams = useSearchParams();
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  // Pre-select filter from ?filter= query param (e.g. coming from dashboard)
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const param = searchParams.get("filter");
+    const valid = ["All", ...STATUSES.map((s) => s.value)];
+    return valid.includes(param) ? param : "All";
+  });
 
   const [toast, setToast] = useState(null);
 

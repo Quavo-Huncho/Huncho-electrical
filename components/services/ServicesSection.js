@@ -11,36 +11,42 @@ const colourMap = [
     bg: "bg-amber-100 dark:bg-amber-500/10",
     text: "text-amber-600 dark:text-amber-400",
     hoverBg: "group-hover:bg-amber-500",
+    borderHex: "#F59E0B",
   },
   // blue
   {
     bg: "bg-blue-100 dark:bg-blue-500/10",
     text: "text-blue-600 dark:text-blue-400",
     hoverBg: "group-hover:bg-blue-500",
+    borderHex: "#3B82F6",
   },
   // green
   {
     bg: "bg-green-100 dark:bg-green-500/10",
     text: "text-green-600 dark:text-green-400",
     hoverBg: "group-hover:bg-green-500",
+    borderHex: "#22C55E",
   },
   // red
   {
     bg: "bg-red-100 dark:bg-red-500/10",
     text: "text-red-600 dark:text-red-400",
     hoverBg: "group-hover:bg-red-500",
+    borderHex: "#EF4444",
   },
   // violet
   {
     bg: "bg-violet-100 dark:bg-violet-500/10",
     text: "text-violet-600 dark:text-violet-400",
     hoverBg: "group-hover:bg-violet-500",
+    borderHex: "#8B5CF6",
   },
   // cyan
   {
     bg: "bg-cyan-100 dark:bg-cyan-500/10",
     text: "text-cyan-600 dark:text-cyan-400",
     hoverBg: "group-hover:bg-cyan-500",
+    borderHex: "#06B6D4",
   },
 ];
 
@@ -48,16 +54,26 @@ export default function ServicesSection() {
   return (
     <section className="bg-white py-20 dark:bg-slate-900 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-14 max-w-2xl">
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-            Our services
-          </h2>
-          <div className="mt-3 h-1 w-16 rounded-full bg-amber-500" />
+        <div className="mb-14 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+              Our services
+            </h2>
+            <div className="mt-3 h-1 w-16 rounded-full bg-amber-500" />
 
-          <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">
-            Dependable electrical solutions for homes, businesses and
-            industries.
-          </p>
+            <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">
+              Dependable electrical solutions for homes, businesses and
+              industries.
+            </p>
+          </div>
+
+          <Link
+            href="/services"
+            className="group inline-flex items-center gap-2 text-sm font-semibold text-amber-600 transition hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+          >
+            View all services
+            <FaArrowRight className="h-3 w-3 transition group-hover:translate-x-1" />
+          </Link>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -69,6 +85,7 @@ export default function ServicesSection() {
               <div
                 key={service.title}
                 className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-lg hover:ring-1 hover:ring-amber-500/30 dark:border-slate-800 dark:bg-slate-900"
+                style={{ borderTopColor: colour.borderHex, borderTopWidth: 3 }}
               >
                 <span
                   className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition ${colour.bg} ${colour.text} ${colour.hoverBg} group-hover:text-white`}

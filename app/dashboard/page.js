@@ -20,12 +20,17 @@ import {
 // ==========================================
 
 const ROUTES = {
-  projects: "/dashboard/project",
+  projects: "/dashboard/projects",
   enquiries: "/dashboard/enquiries",
   materials: "/dashboard/materials",
   materialRequests: "/dashboard/material-requests",
   website: "/",
 };
+
+// Build a filtered URL for a route, e.g. withFilter(ROUTES.enquiries, "New")
+function withFilter(base, filter) {
+  return filter ? `${base}?filter=${encodeURIComponent(filter)}` : base;
+}
 
 // ==========================================
 // HELPERS
@@ -154,20 +159,24 @@ function StatusBreakdown({ title, href, segments }) {
 
       <div className="mt-4 grid grid-cols-3 gap-3">
         {segments.map((s) => (
-          <div key={s.label}>
+          <Link
+            key={s.label}
+            href={s.href || href}
+            className="group rounded-xl p-1.5 transition hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
             <div className="flex items-center gap-1.5">
               <span
                 className="h-2 w-2 flex-none rounded-full"
                 style={{ backgroundColor: s.color }}
               />
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-xs text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-300">
                 {s.label}
               </span>
             </div>
             <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
               {s.value}
             </p>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -434,7 +443,7 @@ export default function DashboardPage() {
           </h1>
 
           <p className="mt-2 break-all text-sm text-slate-500 dark:text-slate-400 sm:text-base">
-            Welcome back, {user?.email}
+            Welcome back, {user?.user_metadata?.full_name || user?.email}
           </p>
         </div>
 
@@ -507,9 +516,9 @@ export default function DashboardPage() {
             title="Enquiries pipeline"
             href={ROUTES.enquiries}
             segments={[
-              { label: "New", value: stats.newEnquiries, color: "#0ea5e9" },
-              { label: "In progress", value: stats.inProgress, color: "#f59e0b" },
-              { label: "Completed", value: stats.completed, color: "#10b981" },
+              { label: "New", value: stats.newEnquiries, color: "#0ea5e9", href: withFilter(ROUTES.enquiries, "New") },
+              { label: "In progress", value: stats.inProgress, color: "#f59e0b", href: withFilter(ROUTES.enquiries, "In Progress") },
+              { label: "Completed", value: stats.completed, color: "#10b981", href: withFilter(ROUTES.enquiries, "Completed") },
             ]}
           />
 
@@ -517,16 +526,18 @@ export default function DashboardPage() {
             title="Material requests pipeline"
             href={ROUTES.materialRequests}
             segments={[
-              { label: "Pending", value: stats.requestsPending, color: "#0ea5e9" },
+              { label: "Pending", value: stats.requestsPending, color: "#0ea5e9", href: withFilter(ROUTES.materialRequests, "pending") },
               {
                 label: "In progress",
                 value: stats.requestsInProgress,
                 color: "#f59e0b",
+                href: withFilter(ROUTES.materialRequests, "contacted"),
               },
               {
                 label: "Completed",
                 value: stats.requestsCompleted,
                 color: "#10b981",
+                href: withFilter(ROUTES.materialRequests, "completed"),
               },
             ]}
           />

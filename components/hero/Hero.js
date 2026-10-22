@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FaBolt, FaArrowRight } from "react-icons/fa";
+import { FaBolt, FaArrowRight, FaShieldAlt, FaCheckCircle } from "react-icons/fa";
 import { getSettings } from "@/lib/getSettings";
 
 export default async function Hero() {
@@ -10,6 +10,22 @@ export default async function Hero() {
     <section className="relative isolate overflow-hidden bg-slate-950">
       {/* Gradient base */}
       <div className="absolute inset-0 -z-30 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+
+      {/* Custom background image (set from dashboard settings) */}
+      {settings?.hero_bg_url && (
+        <div className="absolute inset-0 -z-25">
+          <Image
+            src={settings.hero_bg_url}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+          {/* Darken overlay so text stays readable */}
+          <div className="absolute inset-0 bg-slate-950/70" />
+        </div>
+      )}
 
       {/* Logo watermark — one element that repositions itself responsively
           (centered/radial-faded on mobile, right-anchored/linear-faded on
@@ -56,7 +72,7 @@ export default async function Hero() {
           <div className="mt-9 flex flex-col gap-4 sm:flex-row">
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-8 py-4 text-base font-semibold text-white shadow-lg transition hover:bg-amber-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-950"
             >
               Get a free quote
               <FaArrowRight className="h-3.5 w-3.5" />
@@ -64,17 +80,26 @@ export default async function Hero() {
 
             <Link
               href="/projects"
-              className="inline-flex items-center justify-center rounded-lg border border-white/25 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-slate-950"
+              className="inline-flex items-center justify-center rounded-lg border border-white/25 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-slate-950"
             >
               View our projects
             </Link>
           </div>
 
-          <p className="mt-8 text-sm text-slate-400">
-            Licensed, insured, and available for emergency callouts.
-          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-slate-300">
+              <FaShieldAlt className="h-3 w-3 text-amber-400" /> Licensed &amp; insured
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-slate-300">
+              <FaBolt className="h-3 w-3 text-amber-400" /> Emergency callouts
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-slate-300">
+              <FaCheckCircle className="h-3 w-3 text-amber-400" /> Free quotes
+            </span>
+          </div>
         </div>
       </div>
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-950/60 to-transparent" aria-hidden="true" />
     </section>
   );
 }
