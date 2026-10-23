@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -200,7 +200,7 @@ function StatCard({ label, value, icon, accent, filterValue, activeFilter, onFil
 // MAIN COMPONENT
 // ==========================================
 
-export default function EnquiriesPage() {
+function EnquiriesContent() {
   const searchParams = useSearchParams();
 
   const [enquiries, setEnquiries] = useState([]);
@@ -789,5 +789,23 @@ export default function EnquiriesPage() {
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </section>
+  );
+}
+
+export default function EnquiriesPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="w-full px-4 py-10 sm:px-6">
+          <div className="mx-auto max-w-7xl">
+            <div className="h-9 w-64 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+            <div className="mt-4 h-5 w-80 max-w-full animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="mt-8 h-32 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
+          </div>
+        </section>
+      }
+    >
+      <EnquiriesContent />
+    </Suspense>
   );
 }
