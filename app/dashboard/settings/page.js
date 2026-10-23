@@ -183,13 +183,51 @@ function TextareaField({ label, icon, maxLength, ...props }) {
 // ==========================================
 
 async function uploadSettingsImage(file) {
-  const { supabase: sb } = await import("@/lib/supabase");
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  const path = `settings/${Date.now()}.${ext}`;
-  const { error } = await sb.storage.from("settings-images").upload(path, file, { upsert: true });
-  if (error) throw error;
-  const { data: { publicUrl } } = sb.storage.from("settings-images").getPublicUrl(path);
-  return publicUrl;
+  if (!file) {
+    throw new Error("Please select an image.");
+  }
+
+  // Allow images up to 5 MB.
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("Image size must not exceed 5 MB.");
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error("Please upload a JPG, PNG, or WebP image.");
+  }
+
+  const extensionMap = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+
+  const extension = extensionMap[file.type];
+  const path = `settings/${crypto.randomUUID()}.${extension}`;
+
+  const { data, error } = await supabase.storage
+    .from("settings-images")
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    });
+
+  if (error) {
+    throw new Error(`Image upload failed: ${error.message}`);
+  }
+
+  const { data: publicData } = supabase.storage
+    .from("settings-images")
+    .getPublicUrl(data.path);
+
+  if (!publicData?.publicUrl) {
+    throw new Error("The image uploaded, but its public URL could not be generated.");
+  }
+
+  return publicData.publicUrl;
 }
 
 function ImageUploadField({ label, description, value, onChange }) {
@@ -197,21 +235,27 @@ function ImageUploadField({ label, description, value, onChange }) {
   const [uploadError, setUploadError] = useState("");
 
   async function handleFile(e) {
-    const file = e.target.files?.[0];
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setUploadError("Please select an image file.");
-      return;
-    }
+
     setUploadError("");
     setUploading(true);
+
     try {
       const url = await uploadSettingsImage(file);
       onChange(url);
     } catch (err) {
-      setUploadError(err.message || "Upload failed. Please try again.");
+      console.error("Settings image upload error:", err);
+      setUploadError(
+        err instanceof Error
+          ? err.message
+          : "Upload failed. Please try again."
+      );
     } finally {
       setUploading(false);
+      input.value = "";
     }
   }
 
@@ -259,7 +303,7 @@ function ImageUploadField({ label, description, value, onChange }) {
               </svg>
             )}
             {uploading ? "Uploading..." : "Upload image"}
-            <input type="file" accept="image/*" className="sr-only" onChange={handleFile} disabled={uploading} />
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleFile} disabled={uploading} />
           </label>
 
           {uploadError && (

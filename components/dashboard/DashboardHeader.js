@@ -74,8 +74,6 @@ export default function DashboardHeader() {
           {/* View Website */}
           <Link
             href="/"
-            target="_blank"
-            rel="noopener noreferrer"
             className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-amber-400 hover:text-amber-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-amber-500 dark:hover:text-amber-400 md:flex"
           >
             <Globe className="h-3.5 w-3.5" />
