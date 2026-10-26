@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   Building2,
@@ -18,6 +18,10 @@ import {
   X,
   Loader2,
   RotateCcw,
+  Trash2,
+  Pencil,
+  UploadCloud,
+  Undo2,
   Image as ImageIcon,
 } from "lucide-react";
 
@@ -40,8 +44,102 @@ const DEFAULT_SETTINGS = {
   contact_description: "",
 };
 
+const IMAGE_FIELDS = ["hero_bg_url", "login_bg_url"];
+
+const EMPTY_PENDING = { hero_bg_url: null, login_bg_url: null };
+const EMPTY_REMOVED = { hero_bg_url: false, login_bg_url: false };
+
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500";
+
+// ==========================================
+// IMAGE STORAGE HELPERS
+// ==========================================
+
+const BUCKET = "settings-images";
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+function validateImage(file) {
+  if (!ALLOWED_TYPES[file.type]) {
+    return "Please upload a JPG, PNG, or WebP image.";
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    return "Image size must not exceed 5 MB.";
+  }
+
+  return "";
+}
+
+// crypto.randomUUID only exists on https / localhost, so keep a fallback
+function uniqueId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// Turns a public storage URL back into the file path inside the bucket
+function storagePathFromUrl(url) {
+  if (!url) return null;
+
+  const marker = `/object/public/${BUCKET}/`;
+  const index = url.indexOf(marker);
+
+  if (index === -1) return null;
+
+  return decodeURIComponent(url.slice(index + marker.length).split("?")[0]);
+}
+
+async function removeStoredImage(url) {
+  const path = storagePathFromUrl(url);
+
+  if (!path) return;
+
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+
+  if (error) {
+    console.warn("Couldn't delete image from storage:", error.message);
+  }
+}
+
+async function uploadSettingsImage(file) {
+  const problem = validateImage(file);
+
+  if (problem) throw new Error(problem);
+
+  const path = `settings/${uniqueId()}.${ALLOWED_TYPES[file.type]}`;
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    });
+
+  if (error) {
+    throw new Error(`Image upload failed: ${error.message}`);
+  }
+
+  const { data: publicData } = supabase.storage
+    .from(BUCKET)
+    .getPublicUrl(data.path);
+
+  if (!publicData?.publicUrl) {
+    await supabase.storage.from(BUCKET).remove([data.path]);
+    throw new Error("The image uploaded, but its public URL could not be created.");
+  }
+
+  return publicData.publicUrl;
+}
 
 // ==========================================
 // TOAST
@@ -61,7 +159,7 @@ function Toast({ toast, onClose }) {
   return (
     <div
       role="status"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-start gap-3 rounded-xl border p-4 shadow-lg backdrop-blur sm:inset-x-auto sm:right-6 sm:bottom-6"
+      className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-md items-start gap-3 rounded-xl border p-4 shadow-lg backdrop-blur sm:inset-x-auto sm:right-6"
       style={{
         borderColor: isError ? "#fecaca" : "#a7f3d0",
         backgroundColor: isError
@@ -180,147 +278,235 @@ function TextareaField({ label, icon, maxLength, ...props }) {
 
 // ==========================================
 // IMAGE UPLOAD FIELD
+//
+// Fully controlled by the parent. It only picks a file, shows a local
+// preview, and reports what the user did. Nothing is uploaded or deleted
+// here; that all happens when "Save settings" is clicked.
 // ==========================================
 
-async function uploadSettingsImage(file) {
-  if (!file) {
-    throw new Error("Please select an image.");
-  }
+function ImageUploadField({
+  label,
+  description,
+  savedUrl,
+  pendingFile,
+  markedForRemoval,
+  onSelect,
+  onRemove,
+  onUndo,
+  disabled,
+}) {
+  const inputRef = useRef(null);
 
-  // Allow images up to 5 MB.
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error("Image size must not exceed 5 MB.");
-  }
+  const [error, setError] = useState("");
+  const [failedUrl, setFailedUrl] = useState("");
+  const [dragging, setDragging] = useState(false);
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  // Instant local preview of the staged file
+  const pendingPreview = useMemo(
+    () => (pendingFile ? URL.createObjectURL(pendingFile) : ""),
+    [pendingFile]
+  );
 
-  if (!allowedTypes.includes(file.type)) {
-    throw new Error("Please upload a JPG, PNG, or WebP image.");
-  }
+  useEffect(() => {
+    return () => {
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    };
+  }, [pendingPreview]);
 
-  const extensionMap = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  };
+  const previewSrc = pendingPreview || (markedForRemoval ? "" : savedUrl);
+  const loadFailed = Boolean(previewSrc) && failedUrl === previewSrc;
 
-  const extension = extensionMap[file.type];
-  const path = `settings/${crypto.randomUUID()}.${extension}`;
+  function processFile(file) {
+    if (!file || disabled) return;
 
-  const { data, error } = await supabase.storage
-    .from("settings-images")
-    .upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: file.type,
-    });
+    const problem = validateImage(file);
 
-  if (error) {
-    throw new Error(`Image upload failed: ${error.message}`);
-  }
-
-  const { data: publicData } = supabase.storage
-    .from("settings-images")
-    .getPublicUrl(data.path);
-
-  if (!publicData?.publicUrl) {
-    throw new Error("The image uploaded, but its public URL could not be generated.");
-  }
-
-  return publicData.publicUrl;
-}
-
-function ImageUploadField({ label, description, value, onChange }) {
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-
-  async function handleFile(e) {
-    const input = e.currentTarget;
-    const file = input.files?.[0];
-
-    if (!file) return;
-
-    setUploadError("");
-    setUploading(true);
-
-    try {
-      const url = await uploadSettingsImage(file);
-      onChange(url);
-    } catch (err) {
-      console.error("Settings image upload error:", err);
-      setUploadError(
-        err instanceof Error
-          ? err.message
-          : "Upload failed. Please try again."
-      );
-    } finally {
-      setUploading(false);
-      input.value = "";
+    if (problem) {
+      setError(problem);
+      return;
     }
+
+    setError("");
+    onSelect(file);
   }
+
+  function handleInputChange(e) {
+    const file = e.target.files?.[0];
+
+    // Reset right away so choosing the same file again still fires onChange
+    e.target.value = "";
+
+    processFile(file);
+  }
+
+  function openPicker() {
+    if (!disabled) inputRef.current?.click();
+  }
+
+  const secondaryButton =
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-amber-400 hover:text-amber-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-amber-500 dark:hover:text-amber-400";
 
   return (
     <div className="md:col-span-2">
-      <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</p>
+      <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        {label}
+      </p>
+
       {description && (
-        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+          {description}
+        </p>
       )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleInputChange}
+        tabIndex={-1}
+      />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {/* Preview */}
-        <div className="relative h-36 w-full overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-800 sm:w-64 sm:flex-none">
-          {value ? (
-            <>
-              <img src={value} alt="Background preview" className="h-full w-full object-cover" />
-              <button
-                type="button"
-                onClick={() => onChange("")}
-                className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white shadow hover:bg-rose-600"
-                aria-label="Remove image"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </>
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!disabled) setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            processFile(e.dataTransfer.files?.[0]);
+          }}
+          className={`relative h-40 w-full overflow-hidden rounded-xl border-2 border-dashed transition sm:w-72 sm:flex-none ${
+            dragging
+              ? "border-amber-500 bg-amber-50 dark:bg-amber-500/10"
+              : "border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
+          }`}
+        >
+          {previewSrc && !loadFailed ? (
+            <img
+              key={previewSrc}
+              src={previewSrc}
+              alt={`${label} preview`}
+              className="h-full w-full object-cover"
+              onError={() => setFailedUrl(previewSrc)}
+            />
+          ) : loadFailed ? (
+            <div className="flex h-full flex-col items-center justify-center gap-1 px-4 text-center text-rose-500">
+              <AlertCircle className="h-7 w-7" />
+              <span className="text-xs">
+                This image couldn&apos;t be loaded. Check that the bucket is
+                public.
+              </span>
+            </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-1 text-slate-400">
-              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span className="text-xs">No image set</span>
+              <ImageIcon className="h-8 w-8" />
+              <span className="text-xs">
+                {markedForRemoval ? "Image will be deleted" : "No image set"}
+              </span>
+              <span className="text-[11px]">Drop an image here</span>
             </div>
           )}
         </div>
 
-        {/* Upload controls */}
+        {/* Controls */}
         <div className="flex flex-1 flex-col gap-3">
-          <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-amber-400 hover:text-amber-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-amber-500 dark:hover:text-amber-400">
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-            )}
-            {uploading ? "Uploading..." : "Upload image"}
-            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleFile} disabled={uploading} />
-          </label>
+          <div className="flex flex-wrap gap-2">
+            {previewSrc ? (
+              <>
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  disabled={disabled}
+                  className={secondaryButton}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Replace
+                </button>
 
-          {uploadError && (
-            <p className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400">
-              <AlertCircle className="h-3.5 w-3.5 flex-none" />
-              {uploadError}
+                {pendingFile ? (
+                  <button
+                    type="button"
+                    onClick={onUndo}
+                    disabled={disabled}
+                    className={secondaryButton}
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    Cancel new image
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onRemove}
+                    disabled={disabled}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500 dark:hover:text-white"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  disabled={disabled}
+                  className={secondaryButton}
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  Upload image
+                </button>
+
+                {markedForRemoval && (
+                  <button
+                    type="button"
+                    onClick={onUndo}
+                    disabled={disabled}
+                    className={secondaryButton}
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    Undo delete
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {error && (
+            <p className="flex items-start gap-1.5 text-xs text-rose-600 dark:text-rose-400">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+              {error}
             </p>
           )}
 
-          {value && (
+          {pendingFile && (
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              New image selected: click “Save settings” to apply it.
+            </p>
+          )}
+
+          {markedForRemoval && !pendingFile && (
+            <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+              This image will be deleted when you click “Save settings”.
+            </p>
+          )}
+
+          {savedUrl && !pendingFile && !markedForRemoval && (
             <p className="break-all text-xs text-slate-400">
-              Current: <span className="text-slate-600 dark:text-slate-300">{value.split("/").pop()}</span>
+              Current:{" "}
+              <span className="text-slate-600 dark:text-slate-300">
+                {savedUrl.split("/").pop()}
+              </span>
             </p>
           )}
 
           <p className="text-xs text-slate-400">
-            Recommended: JPG or PNG, at least 1920×1080px. Max 5 MB.
+            JPG, PNG or WebP, at least 1920×1080px. Max 5 MB.
           </p>
         </div>
       </div>
@@ -339,6 +525,10 @@ export default function SettingsPage() {
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [savedSettings, setSavedSettings] = useState(DEFAULT_SETTINGS);
+
+  // Staged image changes (applied only when "Save settings" is clicked)
+  const [pendingImages, setPendingImages] = useState(EMPTY_PENDING);
+  const [removedImages, setRemovedImages] = useState(EMPTY_REMOVED);
 
   function notify(type, message) {
     setToast({ type, message });
@@ -376,55 +566,150 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
+  const hasImageChanges = IMAGE_FIELDS.some(
+    (field) => pendingImages[field] || removedImages[field]
+  );
+
   const isDirty = useMemo(
-    () => JSON.stringify(settings) !== JSON.stringify(savedSettings),
-    [settings, savedSettings]
+    () =>
+      JSON.stringify(settings) !== JSON.stringify(savedSettings) ||
+      hasImageChanges,
+    [settings, savedSettings, hasImageChanges]
   );
 
   function discardChanges() {
     setSettings(savedSettings);
+    setPendingImages(EMPTY_PENDING);
+    setRemovedImages(EMPTY_REMOVED);
   }
 
   // ==========================================
-  // SAVE SETTINGS
+  // IMAGE STAGING (nothing is uploaded here)
+  // ==========================================
+
+  function selectImage(field, file) {
+    setPendingImages((prev) => ({ ...prev, [field]: file }));
+    setRemovedImages((prev) => ({ ...prev, [field]: false }));
+  }
+
+  function markImageRemoved(field) {
+    setPendingImages((prev) => ({ ...prev, [field]: null }));
+    setRemovedImages((prev) => ({ ...prev, [field]: true }));
+  }
+
+  function undoImageChange(field) {
+    setPendingImages((prev) => ({ ...prev, [field]: null }));
+    setRemovedImages((prev) => ({ ...prev, [field]: false }));
+  }
+
+  // ==========================================
+  // SAVE HELPER
+  //
+  // Supabase returns no error when RLS blocks an update, it just updates
+  // zero rows. Asking for the rows back lets us catch that case.
+  // ==========================================
+
+  async function updateSettings(values) {
+    if (!settings.id) {
+      throw new Error("Settings row not found.");
+    }
+
+    const { data, error } = await supabase
+      .from("settings")
+      .update(values)
+      .eq("id", settings.id)
+      .select("id");
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      throw new Error(
+        "Nothing was saved. Check that your account has permission to edit settings."
+      );
+    }
+  }
+
+  // ==========================================
+  // SAVE SETTINGS (text fields + staged images)
   // ==========================================
 
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!isDirty) return;
+
     setSaving(true);
 
-    const { error } = await supabase
-      .from("settings")
-      .update({
-        company_name: settings.company_name,
-        phone: settings.phone,
-        whatsapp: settings.whatsapp,
-        email: settings.email,
-        address: settings.address,
-        business_hours: settings.business_hours,
-        facebook: settings.facebook,
-        x: settings.x,
-        instagram: settings.instagram,
-        linkedin: settings.linkedin,
-        hero_title: settings.hero_title,
-        hero_description: settings.hero_description,
-        hero_bg_url: settings.hero_bg_url,
-        login_bg_url: settings.login_bg_url,
-        contact_title: settings.contact_title,
-        contact_description: settings.contact_description,
-      })
-      .eq("id", settings.id);
+    const uploadedUrls = {}; // field -> newly uploaded url
 
-    setSaving(false);
+    try {
+      // 1. Upload any newly chosen images
+      for (const field of IMAGE_FIELDS) {
+        const file = pendingImages[field];
+        if (file) {
+          uploadedUrls[field] = await uploadSettingsImage(file);
+        }
+      }
 
-    if (error) {
-      notify("error", error.message);
-      return;
+      // 2. Work out the final value for each image column
+      const imageValues = {};
+      for (const field of IMAGE_FIELDS) {
+        if (uploadedUrls[field]) {
+          imageValues[field] = uploadedUrls[field];
+        } else if (removedImages[field]) {
+          imageValues[field] = "";
+        }
+      }
+
+      // 3. Save everything to the database in one update
+      try {
+        await updateSettings({
+          company_name: settings.company_name,
+          phone: settings.phone,
+          whatsapp: settings.whatsapp,
+          email: settings.email,
+          address: settings.address,
+          business_hours: settings.business_hours,
+          facebook: settings.facebook,
+          x: settings.x,
+          instagram: settings.instagram,
+          linkedin: settings.linkedin,
+          hero_title: settings.hero_title,
+          hero_description: settings.hero_description,
+          contact_title: settings.contact_title,
+          contact_description: settings.contact_description,
+          ...imageValues,
+        });
+      } catch (err) {
+        // DB save failed, so remove the files we just uploaded
+        await Promise.all(Object.values(uploadedUrls).map(removeStoredImage));
+        throw err;
+      }
+
+      // 4. Only now delete the old files from storage
+      for (const field of Object.keys(imageValues)) {
+        const oldUrl = savedSettings[field];
+        if (oldUrl && oldUrl !== imageValues[field]) {
+          await removeStoredImage(oldUrl);
+        }
+      }
+
+      const next = { ...settings, ...imageValues };
+      setSettings(next);
+      setSavedSettings(next);
+      setPendingImages(EMPTY_PENDING);
+      setRemovedImages(EMPTY_REMOVED);
+
+      notify("success", "Settings updated successfully!");
+    } catch (err) {
+      console.error("Save settings failed:", err);
+
+      // If we uploaded files but something failed before the DB step,
+      // make sure they don't get orphaned.
+      notify("error", err?.message || "Couldn't save settings.");
+    } finally {
+      setSaving(false);
     }
-
-    setSavedSettings(settings);
-    notify("success", "Settings updated successfully!");
   }
 
   // ==========================================
@@ -433,7 +718,7 @@ export default function SettingsPage() {
 
   if (pageLoading) {
     return (
-      <section className="w-full overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
+      <section className="w-full overflow-x-clip px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
         <div className="mx-auto w-full max-w-5xl">
           <div className="mb-10">
             <div className="h-9 w-64 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
@@ -454,12 +739,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <section className="w-full overflow-x-hidden px-4 py-8 pb-28 sm:px-6 sm:py-10 lg:py-14">
-      <div className="mx-auto w-full max-w-5xl">
-        {/* ========================================
-            HEADER
-        ======================================== */}
-
+    <section className="w-full overflow-x-clip px-4 pt-8 sm:px-6 sm:pt-10 lg:pt-14">
+      <div className="mx-auto w-full max-w-5xl pb-8">
+        {/* HEADER */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-2 text-sm font-semibold text-amber-500">
@@ -490,10 +772,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* ========================================
-            FORM
-        ======================================== */}
-
+        {/* FORM */}
         <form id="settings-form" onSubmit={handleSubmit} className="space-y-6">
           <SectionCard
             icon={<Building2 className="h-5 w-5" />}
@@ -638,23 +917,34 @@ export default function SettingsPage() {
             />
           </SectionCard>
 
-          {/* ── Background Images ── */}
+          {/* Background images */}
           <SectionCard
             icon={<ImageIcon className="h-5 w-5" />}
             title="Background images"
-            description="Override the default background on the hero and auth pages."
+            description="Choose, replace or delete images, then click Save settings."
           >
             <ImageUploadField
               label="Hero section background"
-              description="Shown behind the headline on the homepage. Replaces the current dark gradient."
-              value={settings.hero_bg_url || ""}
-              onChange={(url) => updateField("hero_bg_url", url)}
+              description="Shown behind the headline on the homepage."
+              savedUrl={settings.hero_bg_url || ""}
+              pendingFile={pendingImages.hero_bg_url}
+              markedForRemoval={removedImages.hero_bg_url}
+              disabled={saving}
+              onSelect={(file) => selectImage("hero_bg_url", file)}
+              onRemove={() => markImageRemoved("hero_bg_url")}
+              onUndo={() => undoImageChange("hero_bg_url")}
             />
+
             <ImageUploadField
-              label="Login & Register page background"
-              description="Shown behind the login and register card. Replaces the current dark gradient."
-              value={settings.login_bg_url || ""}
-              onChange={(url) => updateField("login_bg_url", url)}
+              label="Login & register page background"
+              description="Shown behind the login and register card."
+              savedUrl={settings.login_bg_url || ""}
+              pendingFile={pendingImages.login_bg_url}
+              markedForRemoval={removedImages.login_bg_url}
+              disabled={saving}
+              onSelect={(file) => selectImage("login_bg_url", file)}
+              onRemove={() => markImageRemoved("login_bg_url")}
+              onUndo={() => undoImageChange("login_bg_url")}
             />
           </SectionCard>
 
@@ -688,11 +978,8 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* ========================================
-          STICKY SAVE BAR
-      ======================================== */}
-
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/90 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:border-slate-800 dark:bg-slate-950/90">
+      {/* SAVE BAR */}
+      <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white/90 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:border-slate-800 dark:bg-slate-950/90 sm:-mx-6 sm:px-6">
         <div className="mx-auto flex w-full max-w-5xl flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
           {isDirty && (
             <button

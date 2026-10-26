@@ -1,9 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
+import { unstable_noStore as noStore } from "next/cache";
 import { FaBolt, FaArrowRight, FaShieldAlt, FaCheckCircle } from "react-icons/fa";
 import { getSettings } from "@/lib/getSettings";
 
 export default async function Hero() {
+  // Always read fresh settings so a new background shows right after saving
+  noStore();
+
   const settings = await getSettings();
 
   return (
@@ -13,8 +17,9 @@ export default async function Hero() {
 
       {/* Custom background image (set from dashboard settings) */}
       {settings?.hero_bg_url && (
-        <div className="absolute inset-0 -z-25">
+        <div className="absolute inset-0 -z-[25]">
           <Image
+            key={settings.hero_bg_url}
             src={settings.hero_bg_url}
             alt=""
             fill
@@ -27,9 +32,7 @@ export default async function Hero() {
         </div>
       )}
 
-      {/* Logo watermark — one element that repositions itself responsively
-          (centered/radial-faded on mobile, right-anchored/linear-faded on
-          larger screens) instead of two separate hidden/block-toggled divs */}
+      {/* Logo watermark */}
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-20 w-full opacity-40 sm:left-auto sm:right-0 sm:w-[60%] [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_85%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_85%)] sm:[mask-image:linear-gradient(to_left,black_45%,transparent_100%)] sm:[-webkit-mask-image:linear-gradient(to_left,black_45%,transparent_100%)]"
@@ -43,9 +46,7 @@ export default async function Hero() {
         />
       </div>
 
-      {/* Readability overlay — flat and darker on mobile since the mark sits
-          centered behind the text; a left-to-right fade once it moves to the
-          side on larger screens */}
+      {/* Readability overlays */}
       <div className="absolute inset-0 -z-10 bg-slate-950/55 sm:hidden" />
       <div className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-slate-950 via-slate-950/70 to-slate-950/15 sm:block" />
 

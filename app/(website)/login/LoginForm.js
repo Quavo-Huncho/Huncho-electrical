@@ -59,7 +59,7 @@ export default function LoginForm({ bgUrl }) {
       {/* Custom background image */}
       {bgUrl ? (
         <div className="absolute inset-0 -z-20">
-          <Image src={bgUrl} alt="" fill priority sizes="100vw" className="object-cover object-center" />
+          <Image src={bgUrl} alt="" fill priority unoptimized sizes="100vw" className="object-cover object-center" />
           <div className="absolute inset-0 bg-slate-950/70" />
         </div>
       ) : (
