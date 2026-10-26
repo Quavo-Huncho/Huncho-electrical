@@ -38,6 +38,7 @@ export default function DashboardSidebar({ sidebarOpen, setSidebarOpen }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [user, setUser]       = useState(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -46,9 +47,19 @@ export default function DashboardSidebar({ sidebarOpen, setSidebarOpen }) {
   }, []);
 
   const handleLogout = async () => {
-    await signOut();
-    router.push("/login");
-    router.refresh();
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+    setSidebarOpen(false);
+
+    try {
+      await signOut();
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Logout failed:", err);
+      setLoggingOut(false);
+    }
   };
 
   const isDark      = resolvedTheme === "dark";
@@ -59,13 +70,13 @@ export default function DashboardSidebar({ sidebarOpen, setSidebarOpen }) {
     <aside
       className={`
         fixed inset-y-0 left-0 z-[999]
-        flex h-screen w-64 flex-col
+        flex w-64 flex-col
         bg-white dark:bg-slate-900
         border-r border-slate-200 dark:border-slate-800
         shadow-xl lg:shadow-none
         transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:static lg:translate-x-0
+        lg:static lg:h-screen lg:translate-x-0
       `}
     >
       {/* ════════════════════════════════════════
@@ -144,8 +155,10 @@ export default function DashboardSidebar({ sidebarOpen, setSidebarOpen }) {
 
       {/* ════════════════════════════════════════
           MAIN NAV
+          min-h-0 lets this area shrink and scroll inside itself,
+          so the footer below always stays on screen.
       ════════════════════════════════════════ */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
           Main menu
         </p>
@@ -200,15 +213,17 @@ export default function DashboardSidebar({ sidebarOpen, setSidebarOpen }) {
 
       {/* ════════════════════════════════════════
           FOOTER ACTIONS
+          The bottom padding keeps the buttons clear of the phone's
+          home bar / browser toolbar.
       ════════════════════════════════════════ */}
-      <div className="flex-none border-t border-slate-200 p-3 dark:border-slate-800">
+      <div className="flex-none border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2">
           {/* Theme toggle */}
           {mounted && (
             <button
               onClick={() => setTheme(isDark ? "light" : "dark")}
               aria-label="Toggle theme"
-              className="flex h-9 w-9 flex-none items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-amber-400 hover:text-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-amber-500 dark:hover:text-amber-400"
+              className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-amber-400 hover:text-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-amber-500 dark:hover:text-amber-400 lg:h-9 lg:w-9"
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
@@ -217,10 +232,11 @@ export default function DashboardSidebar({ sidebarOpen, setSidebarOpen }) {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-500 hover:text-white dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500 dark:hover:text-white"
+            disabled={loggingOut}
+            className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500 dark:hover:text-white lg:h-9"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Logout
+            {loggingOut ? "Logging out..." : "Logout"}
           </button>
         </div>
       </div>
